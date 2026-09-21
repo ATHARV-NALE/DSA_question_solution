@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RoboStudio IDE - Prototype</title>
+  <style>
+    :root {
+      --bg: #0f141c;
+      --panel: #18202c;
+      --panel-border: #263346;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+      --code-bg: #0b0f14;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    /* Header */
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--panel-border);
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 16px; }
+    .status-group { display: flex; gap: 15px; font-size: 12px; color: var(--text-muted); align-items: center; }
+    .status-tag { display: flex; align-items: center; gap: 6px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-green); }
+    .btn-launch {
+      background: var(--accent-green);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-launch.running { background: var(--accent-red); }
+
+    /* Layout Grid */
+    .workspace {
+      display: grid;
+      grid-template-columns: 280px 1fr 340px;
+      flex: 1;
+      height: calc(100vh - 170px);
+    }
+    .panel {
+      background: var(--panel);
+      border-right: 1px solid var(--panel-border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+    .panel-header {
+      padding: 12px 16px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: bold;
+      color: var(--text-muted);
+      border-bottom: 1px solid var(--panel-border);
+    }
+    .panel-content { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+
+    /* Form Controls */
+    label { font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; display: block; }
+    select, input {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--panel-border);
+      color: var(--text);
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .btn-group { display: flex; gap: 6px; }
+    .btn-toggle {
+      flex: 1;
+      background: var(--bg);
+      color: var(--text-muted);
+      border: 1px solid var(--panel-border);
+      padding: 8px 4px;
+      font-size: 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-toggle.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+    /* Sensor Rigging List */
+    .sensor-list { display: flex; flex-direction: column; gap: 8px; }
+    .sensor-item {
+      background: var(--bg);
+      border: 1px solid var(--panel-border);
+      padding: 8px 10px;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+    }
+    .btn-add {
+      background: transparent;
+      border: 1px dashed var(--accent);
+      color: var(--accent);
+      padding: 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    /* Central Viewport */
+    .viewport-panel { display: flex; flex-direction: column; background: var(--bg); }
+    .preview-canvas {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: radial-gradient(circle at center, #1e293b 0%, #0b0f14 100%);
+    }
+    .robot-graphic {
+      width: 120px;
+      height: 120px;
+      border: 2px dashed var(--accent);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+    .sensor-badge {
+      position: absolute;
+      background: var(--accent-green);
+      color: black;
+      font-size: 9px;
+      font-weight: bold;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+    .badge-lidar { top: -10px; }
+    .badge-camera { bottom: -10px; }
+    .view-overlay {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      background: rgba(0,0,0,0.6);
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Code & IDE Panel */
+    .editor-wrapper {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      background: var(--code-bg);
+    }
+    textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #38bdf8;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 12px;
+      resize: none;
+      line-height: 1.5;
+    }
+    textarea:focus { outline: none; }
+
+    /* Bottom Console */
+    footer {
+      height: 170px;
+      background: var(--panel);
+      border-top: 1px solid var(--panel-border);
+      display: flex;
+      flex-direction: column;
+    }
+    .log-box {
+      flex: 1;
+      padding: 10px 16px;
+      font-family: monospace;
+      font-size: 11px;
+      color: var(--text-muted);
+      overflow-y: auto;
+    }
+    .log-entry { margin-bottom: 4px; }
+    .log-info { color: #38bdf8; }
+    .log-success { color: var(--accent-green); }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="brand">
+      <span>⚙ RoboStudio IDE</span>
+      <span style="font-size: 11px; background: var(--accent); padding: 2px 6px; border-radius: 4px;">v1.0</span>
+    </div>
+    <div class="status-group">
+      <div class="status-tag"><div class="dot"></div> ROS2 Jazzy</div>
+      <div class="status-tag"><div class="dot"></div> Orchestrator: 127.0.0.1:8000</div>
+    </div>
+    <button id="launchBtn" class="btn-launch" onclick="toggleSim()">▶ Launch in Gazebo</button>
+  </header>
+
+  <!-- Main Multi-Column View -->
+  <div class="workspace">
+    
+    <!-- Left Column: Robot & Sensor Rigging -->
+    <div class="panel">
+      <div class="panel-header">1. Rigging & Environment</div>
+      <div class="panel-content">
+        <div>
+          <label>Robot Base Type</label>
+          <div class="btn-group">
+            <button class="btn-toggle active" onclick="setRobot('Quadcopter Drone')">Drone</button>
+            <button class="btn-toggle" onclick="setRobot('4WD Rover')">Rover</button>
+            <button class="btn-toggle" onclick="setRobot('Biped Humanoid')">Humanoid</button>
+          </div>
+        </div>
+
+        <div>
+          <label>Simulation World</label>
+          <select id="worldSelect" onchange="addLog('Switched terrain to: ' + this.value, 'info')">
+            <option>Warehouse Obstacles</option>
+            <option>Mars Crater & Rocks</option>
+            <option>Urban Road Course</option>
+          </select>
+        </div>
+
+        <div>
+          <label>Attached Sensors (URDF Slots)</label>
+          <div class="sensor-list" id="sensorList">
+            <div class="sensor-item">
+              <span>3D LiDAR [top_mount]</span>
+              <span style="color: var(--accent-green)">✓</span>
+            </div>
+            <div class="sensor-item">
+              <span>Depth Camera [front_frame]</span>
+              <span style="color: var(--accent-green)">✓</span>
+            </div>
+          </div>
+          <button class="btn-add" style="margin-top: 8px; width: 100%;" onclick="addSensor()">+ Attach Sensor</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Column: Instant PyBullet Preview -->
+    <div class="viewport-panel">
+      <div class="panel-header" style="border-bottom: 1px solid var(--panel-border);">2. Model Inspector (Fast Offscreen Preview)</div>
+      <div class="preview-canvas">
+        <div id="robotBox" class="robot-graphic">
+          <span id="robotLabel">Quadcopter</span>
+          <span class="sensor-badge badge-lidar">LiDAR</span>
+          <span class="sensor-badge badge-camera">Depth Cam</span>
+        </div>
+        <div class="view-overlay">
+          <span>Engine: PyBullet Offscreen Blit | 60 FPS | Orbit: Ready</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Code / Algorithm Editor -->
+    <div class="panel" style="border-right: none;">
+      <div class="panel-header">3. Algorithm (MATLAB / Python)</div>
+      <div class="panel-content" style="padding-bottom: 8px;">
+        <label>Algorithm Preset</label>
+        <select onchange="updateCodeTemplate(this.value)">
+          <option value="pid">PID Velocity Controller</option>
+          <option value="rrt">RRT* Obstacle Avoidance</option>
+          <option value="state">State-Space (x_dot = Ax + Bu)</option>
+        </select>
+      </div>
+      <div class="editor-wrapper">
+        <textarea id="codeEditor"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom: Telemetry & Logs -->
+  <footer>
+    <div class="panel-header" style="padding: 6px 16px;">System Console & Topic Streams</div>
+    <div class="log-box" id="logBox">
+      <div class="log-entry log-info">[INFO] Workspace ready. PyBullet preview rendered base links.</div>
+      <div class="log-entry">[TOPIC] Registered: /robot/cmd_vel [geometry_msgs/Twist]</div>
+    </div>
+  </footer>
+
+  <script>
+    let isRunning = false;
+    const templates = {
+      pid: `# PID Velocity Control Loop\nimport rclpy\nfrom geometry_msgs.msg import Twist\n\ndef update(state, target):\n    error = target - state.velocity\n    kp, kd = 1.2, 0.05\n    cmd = kp * error\n    return Twist(linear_x=cmd)`,
+      rrt: `# RRT* Local Path Planner\nimport numpy as np\n\ndef plan(start, goal, obstacles):\n    # Samples collision-free tree towards goal\n    path = [start, (start+goal)/2, goal]\n    return path`,
+      state: `# State-Space Linear Controller\n# dx/dt = A*x + B*u\nA = [[0, 1], [-2, -0.5]]\nB = [[0], [1]]\nK = [1.5, 0.8]  # LQR Gain\n\ndef control_law(x):\n    return -K * x`
+    };
+
+    document.getElementById('codeEditor').value = templates.pid;
+
+    function setRobot(name) {
+      document.querySelectorAll('.btn-toggle').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('robotLabel').innerText = name.split(' ')[0];
+      addLog(`Loaded model configuration for: ${name}`, 'info');
+    }
+
+    function addSensor() {
+      const type = prompt("Choose sensor (IMU, Sonar, GPS):", "IMU");
+      if (type) {
+        const div = document.createElement('div');
+        div.className = 'sensor-item';
+        div.innerHTML = `<span>${type} [chassis_mount]</span><span style="color: var(--accent-green)">✓</span>`;
+        document.getElementById('sensorList').appendChild(div);
+        addLog(`Injected sensor macro into Xacro: ${type}`, 'success');
+      }
+    }
+
+    function updateCodeTemplate(key) {
+      document.getElementById('codeEditor').value = templates[key];
+      addLog(`Loaded algorithm template: ${key.toUpperCase()}`, 'info');
+    }
+
+    function toggleSim() {
+      const btn = document.getElementById('launchBtn');
+      isRunning = !isRunning;
+      if (isRunning) {
+        btn.innerText = "■ Terminate Gazebo";
+        btn.classList.add('running');
+        addLog("[ORCHESTRATOR] Generated dynamic launch description.", "info");
+        addLog("[GAZEBO] Spawning standalone native Linux window (PID: 49102)...", "success");
+        addLog("[STREAM] Telemetry streaming active: /odom @ 50Hz, /scan @ 10Hz", "info");
+      } else {
+        btn.innerText = "▶ Launch in Gazebo";
+        btn.classList.remove('running');
+        addLog("[ORCHESTRATOR] Sent SIGTERM to Gazebo process. Teardown complete.", "info");
+      }
+    }
+
+    function addLog(msg, type = '') {
+      const box = document.getElementById('logBox');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type === 'info' ? 'log-info' : ''} ${type === 'success' ? 'log-success' : ''}`;
+      entry.innerText = msg;
+      box.appendChild(entry);
+      box.scrollTop = box.scrollHeight;
+    }
+  </script>
+</body>
+</html>
